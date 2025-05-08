@@ -1,0 +1,26 @@
+{
+  "dependencies": {
+    "@supabase/supabase-js": "^2.48.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "expo": "^52.0.39",
+    "express": "^4.21.2",
+    "mongoose": "^8.12.1",
+    "multer": "^1.4.5-lts.1",
+    "react-native-document-picker": "^9.3.1",
+    "react-native-linear-gradient": "^2.8.3",
+    "tailwind-rn": "^4.2.0",
+    "react": "18.3.1",
+    "react-native": "0.76.7"
+  },
+  "name": "EduSphere",
+  "version": "1.0.0",
+  "scripts": {
+    "android": "expo run:android",
+    "ios": "expo run:ios"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "@types/react": "~18.3.12"
+  }
+}
