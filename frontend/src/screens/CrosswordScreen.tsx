@@ -1,5 +1,13 @@
-import React, { useState, useEffect } from "react";
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Dimensions, Alert } from "react-native";
+import React, { useState, useEffect, useRef } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  Dimensions,
+  Alert,
+} from "react-native";
 import { supabase } from "../../supabase";
 import { generateCrosswordLayout } from "../utils/crosswordGenerator";
 
@@ -8,54 +16,62 @@ type CrosswordScreenProps = {
   navigateTo: (screen: string, params?: any) => void;
 };
 
-const CrosswordScreen: React.FC<CrosswordScreenProps> = ({ route, navigateTo}) => {
+const CrosswordScreen: React.FC<CrosswordScreenProps> = ({
+  route,
+  navigateTo,
+}) => {
   const { level } = route.params;
-  const userId = route.params?.userId || "12345678-1234-5678-1234-567812345678";
+  const userId =
+    route.params?.userId || "12345678-1234-5678-1234-567812345678";
   const [questions, setQuestions] = useState<any[]>([]);
   const [crossword, setCrossword] = useState<any>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [correctCount, setCorrectCount] = useState(0);
-  const [wrongCount, setWrongCount] = useState(0);
-
+  const inputRefs = useRef<Record<string, TextInput | null>>({});
   const screenWidth = Dimensions.get("window").width;
   const gridSize = 10;
   const cellSize = screenWidth / (gridSize + 0.5);
 
   useEffect(() => {
     const fetchQuestions = async () => {
-      console.log("Fetching questions for level:", level);
-  
       const { data, error } = await supabase
         .from("crossword_questions")
         .select("id, question, answer, difficulty")
         .eq("level", level)
         .order("difficulty", { ascending: true })
         .limit(level + 3);
-  
+
       if (error) {
         console.error("Error fetching questions:", error);
         return;
       }
-  
+
       setQuestions(data || []);
-  
-      // Generate crossword only if there are valid questions
+
       if (data && data.length > 0) {
-        console.log("Generating crossword layout...");
-        const validAnswers = data.filter(q => q.answer.replace(/[^A-Za-z]/g, '').length <= 10);
-        const crosswordData = generateCrosswordLayout(validAnswers.map(q => q.answer.toUpperCase()));
-        console.log("Generated crossword data:", crosswordData);
+        const validAnswers = data.filter(
+          (q) => q.answer.replace(/[^A-Za-z]/g, "").length <= 10
+        );
+        const crosswordData = generateCrosswordLayout(
+          validAnswers.map((q) => q.answer.toUpperCase())
+        );
         setCrossword(crosswordData);
         setAnswers({});
       }
     };
-  
-    fetchQuestions();
-  }, [level]); // ✅ Added `level` as a dependency
-  
 
-  const handleInputChange = (posKey: string, value: string) => {
+    fetchQuestions();
+  }, [level]);
+
+  const handleInputChange = (
+    posKey: string,
+    value: string,
+    nextKey?: string
+  ) => {
     setAnswers((prev) => ({ ...prev, [posKey]: value.toUpperCase() }));
+
+    if (value && nextKey && inputRefs.current[nextKey]) {
+      inputRefs.current[nextKey]?.focus();
+    }
   };
 
   const checkAnswersAndSaveProgress = async () => {
@@ -67,9 +83,10 @@ const CrosswordScreen: React.FC<CrosswordScreenProps> = ({ route, navigateTo}) =
       let userAnswer = "";
 
       for (let i = 0; i < word.length; i++) {
-        const key = wordObj.direction === "H"
-          ? `${wordObj.row}-${wordObj.col + i}`
-          : `${wordObj.row + i}-${wordObj.col}`;
+        const key =
+          wordObj.direction === "H"
+            ? `${wordObj.row}-${wordObj.col + i}`
+            : `${wordObj.row + i}-${wordObj.col}`;
         userAnswer += answers[key] || " ";
       }
 
@@ -80,33 +97,26 @@ const CrosswordScreen: React.FC<CrosswordScreenProps> = ({ route, navigateTo}) =
       }
     });
 
-    setCorrectCount(correct);
-    setWrongCount(wrong);
-
     const nextLevel: number = correct > wrong ? level + 1 : level;
 
-    // Update user progress in Supabase
-    const { error } = await supabase
-      .from("user_progress")
-      .upsert(
-        [
-          {
-            user_id: userId,
-            level: nextLevel,
-            correct_attempts: correct,
-            wrong_attempts: wrong,
-            last_difficulty: correct > wrong ? "Medium" : "Easy",
-          },
-        ],
-        { onConflict: "user_id, level" } // Fix for unique constraint issue
-      );
+    const { error } = await supabase.from("user_progress").upsert(
+      [
+        {
+          user_id: userId,
+          level: nextLevel,
+          correct_attempts: correct,
+          wrong_attempts: wrong,
+          last_difficulty: correct > wrong ? "Medium" : "Easy",
+        },
+      ],
+      { onConflict: "user_id, level" }
+    );
 
     if (error) {
-      console.error("Error updating progress:", error);
       Alert.alert("Error", "Failed to save progress.");
     } else {
       Alert.alert("Result", `Correct: ${correct}, Wrong: ${wrong}`, [
-        { text: "OK", onPress: () => navigateTo("Levels", {newLevel: nextLevel}) },
+        { text: "OK", onPress: () => navigateTo("Levels", { newLevel: nextLevel }) },
       ]);
     }
   };
@@ -121,9 +131,42 @@ const CrosswordScreen: React.FC<CrosswordScreenProps> = ({ route, navigateTo}) =
         {crossword?.grid.map((row: any[], rowIndex: number) => (
           <View key={rowIndex} className="flex-row">
             {row.map((cell, colIndex) => {
-              const cellData = crossword.placedWords.find(
-                (w: any) => w.row === rowIndex && w.col === colIndex
-              );
+              const key = `${rowIndex}-${colIndex}`;
+              const isFilled = cell !== "";
+              const numberLabel = crossword.cellNumbers?.[rowIndex]?.[colIndex];
+              let nextKey: string | undefined;
+
+              if (isFilled) {
+                const word =
+                  crossword.placedWords.find(
+                    (w) =>
+                      w.direction === "H" &&
+                      w.row === rowIndex &&
+                      colIndex >= w.col &&
+                      colIndex < w.col + w.word.length
+                  ) ||
+                  crossword.placedWords.find(
+                    (w) =>
+                      w.direction === "V" &&
+                      w.col === colIndex &&
+                      rowIndex >= w.row &&
+                      rowIndex < w.row + w.word.length
+                  );
+
+                if (word) {
+                  const indexInWord =
+                    word.direction === "H"
+                      ? colIndex - word.col
+                      : rowIndex - word.row;
+                  if (indexInWord < word.word.length - 1) {
+                    const nextRow =
+                      word.direction === "H" ? rowIndex : rowIndex + 1;
+                    const nextCol =
+                      word.direction === "H" ? colIndex + 1 : colIndex;
+                    nextKey = `${nextRow}-${nextCol}`;
+                  }
+                }
+              }
 
               return (
                 <View
@@ -131,33 +174,42 @@ const CrosswordScreen: React.FC<CrosswordScreenProps> = ({ route, navigateTo}) =
                   style={{
                     width: cellSize,
                     height: cellSize,
-                    borderWidth: cell !== "" ? 1 : 0,
-                    backgroundColor: cell !== "" ? "#fff" : "#ccc",
+                    borderWidth: isFilled ? 1 : 0,
+                    backgroundColor: isFilled ? "#fff" : "#ccc",
                     justifyContent: "center",
                     alignItems: "center",
+                    position: "relative",
                   }}
                 >
-                  {cell !== "" && (
-                    <>
-                      {cellData?.number && (
-                        <Text style={{ position: "absolute", top: 2, left: 2, fontSize: 10 }}>
-                          {cellData.number}
-                        </Text>
-                      )}
-                      <TextInput
-                        style={{
-                          fontSize: 18,
-                          textAlign: "center",
-                          width: "100%",
-                          height: "100%",
-                          padding: 1,
-                        }}
-                        maxLength={1}
-                        onChangeText={(value) =>
-                          handleInputChange(`${rowIndex}-${colIndex}`, value)
-                        }
-                      />
-                    </>
+                  {numberLabel && (
+                    <Text
+                      style={{
+                        position: "absolute",
+                        top: 1,
+                        left: 3,
+                        fontSize: 10,
+                        color: "black",
+                      }}
+                    >
+                      {numberLabel}
+                    </Text>
+                  )}
+                  {isFilled && (
+                    <TextInput
+                      ref={(ref) => (inputRefs.current[key] = ref)}
+                      style={{
+                        fontSize: 18,
+                        textAlign: "center",
+                        width: "100%",
+                        height: "100%",
+                        padding: 1,
+                      }}
+                      maxLength={1}
+                      value={answers[key] || ""}
+                      onChangeText={(value) =>
+                        handleInputChange(key, value, nextKey)
+                      }
+                    />
                   )}
                 </View>
               );
@@ -172,7 +224,8 @@ const CrosswordScreen: React.FC<CrosswordScreenProps> = ({ route, navigateTo}) =
           .filter((w: any) => w.direction === "H")
           .map((w: any, index: number) => (
             <Text key={index} className="text-md text-gray-600">
-              {w.number}. {questions.find((q) => q.answer.toUpperCase() === w.word)?.question}
+              {w.number}.{" "}
+              {questions.find((q) => q.answer.toUpperCase() === w.word)?.question}
             </Text>
           ))}
 
@@ -181,7 +234,8 @@ const CrosswordScreen: React.FC<CrosswordScreenProps> = ({ route, navigateTo}) =
           .filter((w: any) => w.direction === "V")
           .map((w: any, index: number) => (
             <Text key={index} className="text-md text-gray-600">
-              {w.number}. {questions.find((q) => q.answer.toUpperCase() === w.word)?.question}
+              {w.number}.{" "}
+              {questions.find((q) => q.answer.toUpperCase() === w.word)?.question}
             </Text>
           ))}
       </View>

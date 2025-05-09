@@ -6,12 +6,10 @@ import BottomNavigation from "./BottomNavigation";
 const { width } = Dimensions.get("window");
 
 const modules = [
-  { id: "1", title: "Programming", icon: "code-slash-outline", color: "#A7D7C5" },
-  { id: "2", title: "AI & ML", icon: "bulb-outline", color: "#FFD3B6" },
-  { id: "3", title: "Cyber Security", icon: "shield-checkmark-outline", color: "#F4C2C2" },
-  { id: "4", title: "Data Science", icon: "bar-chart-outline", color: "#B5C7F2" },
-  { id: "5", title: "Networking", icon: "wifi-outline", color: "#F7C59F" },
-  { id: "6", title: "Blockchain", icon: "cube-outline", color: "#D8BFD8" },
+  { id: "1", title: "Operating Systems", icon: "desktop-outline", color: "#FFD3B6" },
+  { id: "2", title: "DSA", icon: "code-slash-outline", color: "#A7D7C5" },
+  { id: "3", title: "DBMS", icon: "bar-chart-outline", color: "#B5C7F2" },
+  { id: "4", title: "Computer Networks", icon: "wifi-outline", color: "#F7C59F" },
 ];
 
 interface ModuleScreenProps {
@@ -33,6 +31,11 @@ const ModuleScreen: React.FC<ModuleScreenProps> = ({ navigateTo }) => {
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <TouchableOpacity
+            onPress={() => {
+              if (item.title === "Operating Systems") {
+                navigateTo("OSModulesScreen");
+              }
+            }}
             style={{
               backgroundColor: "#FFFFFF",
               flex: 1,

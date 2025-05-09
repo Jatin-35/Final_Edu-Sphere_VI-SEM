@@ -12,6 +12,7 @@ import ChatBot from "./src/screens/ChatBot";
 import Profile from "./src/screens/Profile";
 import ModuleScreen from "./src/screens/ModuleScreen";
 import TextSummarize from "./src/screens/TextSummarize";
+import OSModulesScreen from "./src/screens/OSModulesScreen";
 
 
 const App = () => {
@@ -66,6 +67,7 @@ const App = () => {
       {currentScreen === "ChatBot" && <ChatBot navigateTo={navigateTo} />}
       {currentScreen === "Profile" && <Profile navigateTo={navigateTo} />}
       {currentScreen === "Module" && <ModuleScreen navigateTo={navigateTo} />}
+      {currentScreen === "OSModulesScreen" && <OSModulesScreen navigateTo={navigateTo} />}
       {currentScreen === "TextSummarize" && <TextSummarize navigateTo={navigateTo} />}
     </>
   );
