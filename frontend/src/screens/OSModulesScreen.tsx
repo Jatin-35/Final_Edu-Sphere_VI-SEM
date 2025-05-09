@@ -20,7 +20,8 @@ const osModules = [
       {
         id: "1-2",
         title: "Functions of OS",
-        playable: false,
+        video: require("../../assets/videos/OS2.mp4"),
+        playable: true,
       },
     ],
   },
